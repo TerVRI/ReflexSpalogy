@@ -26,7 +26,7 @@ export function useBodyInteraction(systems: BodySystem[]) {
     hoveredPoint: null,
     hoverPosition: null,
     showDetailPanel: false,
-    viewMode: "3d",
+    viewMode: (typeof window !== "undefined" && window.innerWidth < 768 ? "2d" : "3d") as "3d" | "2d",
     layerOpacity: 1,
     quizMode: false,
     exploredPoints: new Set(),
