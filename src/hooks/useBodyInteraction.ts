@@ -26,7 +26,7 @@ export function useBodyInteraction(systems: BodySystem[]) {
     hoveredPoint: null,
     hoverPosition: null,
     showDetailPanel: false,
-    viewMode: "2d",
+    viewMode: "3d",
     layerOpacity: 1,
     quizMode: false,
     exploredPoints: new Set(),
@@ -77,6 +77,10 @@ export function useBodyInteraction(systems: BodySystem[]) {
     setState((s) => ({ ...s, layerOpacity: opacity }));
   }, []);
 
+  const setViewMode = useCallback((mode: "3d" | "2d") => {
+    setState((s) => ({ ...s, viewMode: mode }));
+  }, []);
+
   const toggleQuizMode = useCallback(() => {
     setState((s) => ({ ...s, quizMode: !s.quizMode }));
   }, []);
@@ -97,6 +101,7 @@ export function useBodyInteraction(systems: BodySystem[]) {
     selectPoint,
     closePanel,
     setLayerOpacity,
+    setViewMode,
     toggleQuizMode,
     isPointVisible,
   };

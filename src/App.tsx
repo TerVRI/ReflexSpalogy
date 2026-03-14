@@ -3,7 +3,7 @@ import { REFLEX_POINTS } from "./data/points";
 import { useBodyInteraction } from "./hooks/useBodyInteraction";
 import { useAudio } from "./hooks/useAudio";
 import { SystemPicker } from "./components/SystemPicker";
-import { BodyViewer } from "./components/BodyViewer";
+import { CenterViewer } from "./components/CenterViewer";
 import { DetailPanel } from "./components/DetailPanel";
 import { QuizMode } from "./components/QuizMode";
 import "./styles/main.css";
@@ -12,9 +12,24 @@ export default function App() {
   const interaction = useBodyInteraction(BODY_SYSTEMS);
   const audio = useAudio();
 
+  const opacitySlider = (
+    <div className="opacity-slider-wrap">
+      <label>
+        <span>Layer opacity</span>
+        <input
+          type="range"
+          min="0.2"
+          max="1"
+          step="0.05"
+          value={interaction.layerOpacity}
+          onChange={(e) => interaction.setLayerOpacity(parseFloat(e.target.value))}
+        />
+      </label>
+    </div>
+  );
+
   return (
     <div className="app">
-      {/* Header */}
       <header className="app-header">
         <div className="app-header__brand">
           <span className="app-header__logo">👣</span>
@@ -37,7 +52,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main layout */}
       <main className="app-main">
         {interaction.quizMode ? (
           <QuizMode
@@ -47,7 +61,6 @@ export default function App() {
           />
         ) : (
           <>
-            {/* Left: System Picker */}
             <SystemPicker
               systems={BODY_SYSTEMS}
               activeSystems={interaction.activeSystems}
@@ -56,35 +69,19 @@ export default function App() {
               onSelectAll={interaction.selectAllSystems}
             />
 
-            {/* Centre: Body Viewer */}
-            <div className="viewer-container">
-              <BodyViewer
-                activeSystems={interaction.activeSystems}
-                layerOpacity={interaction.layerOpacity}
-                onHoverPoint={interaction.hoverPoint}
-                onSelectPoint={interaction.selectPoint}
-                hoveredPoint={interaction.hoveredPoint}
-                hoverPosition={interaction.hoverPosition}
-                exploredPoints={interaction.exploredPoints}
-              />
+            <CenterViewer
+              activeSystems={interaction.activeSystems}
+              layerOpacity={interaction.layerOpacity}
+              viewMode={interaction.viewMode}
+              onSetViewMode={interaction.setViewMode}
+              onHoverPoint={interaction.hoverPoint}
+              onSelectPoint={interaction.selectPoint}
+              hoveredPoint={interaction.hoveredPoint}
+              hoverPosition={interaction.hoverPosition}
+              exploredPoints={interaction.exploredPoints}
+              layerOpacitySlider={opacitySlider}
+            />
 
-              {/* Opacity slider */}
-              <div className="opacity-slider-wrap">
-                <label>
-                  <span>Layer opacity</span>
-                  <input
-                    type="range"
-                    min="0.2"
-                    max="1"
-                    step="0.05"
-                    value={interaction.layerOpacity}
-                    onChange={(e) => interaction.setLayerOpacity(parseFloat(e.target.value))}
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* Right: Detail Panel or System Overview */}
             <div className="right-panel">
               {interaction.selectedPoint ? (
                 <DetailPanel
@@ -119,7 +116,6 @@ function SystemOverview({
   onSelect: (id: string) => void;
 }) {
   const active = systems.filter((s) => activeSystems.has(s.id));
-
   return (
     <div className="system-overview">
       <h2 className="system-overview__title">
@@ -130,7 +126,6 @@ function SystemOverview({
       <p className="system-overview__subtitle">
         Click a point on the body to explore its anatomy, biology, and reflexology connection.
       </p>
-
       <div className="system-overview__cards">
         {active.map((sys) => (
           <div
@@ -146,18 +141,13 @@ function SystemOverview({
             <p>{sys.description}</p>
             <div className="overview-card__chemicals">
               {sys.keyChemicals.slice(0, 3).map((c) => (
-                <span key={c} className="chemical-tag chemical-tag--sm">
-                  {c}
-                </span>
+                <span key={c} className="chemical-tag chemical-tag--sm">{c}</span>
               ))}
             </div>
           </div>
         ))}
       </div>
-
-      <div className="system-overview__hint">
-        👆 Click a card to isolate that system
-      </div>
+      <div className="system-overview__hint">👆 Click a card to isolate that system</div>
     </div>
   );
 }
