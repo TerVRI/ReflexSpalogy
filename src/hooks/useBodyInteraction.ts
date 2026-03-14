@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import type { ReflexPoint } from "../data/points";
 import type { BodySystem } from "../data/systems";
 
+export type ViewMode = "3d" | "2d" | "realistic";
+
 export interface HoverState {
   point: ReflexPoint | null;
   position: { x: number; y: number } | null;
@@ -13,10 +15,15 @@ export interface AppState {
   hoveredPoint: ReflexPoint | null;
   hoverPosition: { x: number; y: number } | null;
   showDetailPanel: boolean;
-  viewMode: "3d" | "2d";
+  viewMode: ViewMode;
   layerOpacity: number;
   quizMode: boolean;
   exploredPoints: Set<string>;
+}
+
+function getDefaultViewMode(): ViewMode {
+  if (typeof window === "undefined") return "3d";
+  return window.innerWidth < 768 ? "2d" : "3d";
 }
 
 export function useBodyInteraction(systems: BodySystem[]) {
@@ -26,7 +33,7 @@ export function useBodyInteraction(systems: BodySystem[]) {
     hoveredPoint: null,
     hoverPosition: null,
     showDetailPanel: false,
-    viewMode: (typeof window !== "undefined" && window.innerWidth < 768 ? "2d" : "3d") as "3d" | "2d",
+    viewMode: getDefaultViewMode(),
     layerOpacity: 1,
     quizMode: false,
     exploredPoints: new Set(),
@@ -77,7 +84,7 @@ export function useBodyInteraction(systems: BodySystem[]) {
     setState((s) => ({ ...s, layerOpacity: opacity }));
   }, []);
 
-  const setViewMode = useCallback((mode: "3d" | "2d") => {
+  const setViewMode = useCallback((mode: ViewMode) => {
     setState((s) => ({ ...s, viewMode: mode }));
   }, []);
 

@@ -1,12 +1,14 @@
 import type { ReflexPoint } from "../data/points";
+import type { ViewMode } from "../hooks/useBodyInteraction";
 import { BodyViewer3D } from "./BodyViewer3D";
 import { BodyViewer2D } from "./BodyViewer2D";
+import { BodyViewerRealistic } from "./BodyViewerRealistic";
 
 interface CenterViewerProps {
   activeSystems: Set<string>;
   layerOpacity: number;
-  viewMode: "3d" | "2d";
-  onSetViewMode: (mode: "3d" | "2d") => void;
+  viewMode: ViewMode;
+  onSetViewMode: (mode: ViewMode) => void;
   onHoverPoint: (point: ReflexPoint | null, pos?: { x: number; y: number }) => void;
   onSelectPoint: (point: ReflexPoint) => void;
   hoveredPoint: ReflexPoint | null;
@@ -39,8 +41,13 @@ export function CenterViewer({
 
   return (
     <div className="viewer-container">
-      {/* Mode toggle */}
       <div className="viewer-mode-toggle">
+        <button
+          className={`mode-btn ${viewMode === "2d" ? "mode-btn--active" : ""}`}
+          onClick={() => onSetViewMode("2d")}
+        >
+          ⬜ 2D
+        </button>
         <button
           className={`mode-btn ${viewMode === "3d" ? "mode-btn--active" : ""}`}
           onClick={() => onSetViewMode("3d")}
@@ -48,14 +55,21 @@ export function CenterViewer({
           ◈ 3D
         </button>
         <button
-          className={`mode-btn ${viewMode === "2d" ? "mode-btn--active" : ""}`}
-          onClick={() => onSetViewMode("2d")}
+          className={`mode-btn mode-btn--realistic ${viewMode === "realistic" ? "mode-btn--active" : ""}`}
+          onClick={() => onSetViewMode("realistic")}
+          title="High-detail model (~4 MB download)"
         >
-          ⬜ 2D
+          ✦ Realistic
         </button>
       </div>
 
-      {viewMode === "3d" ? <BodyViewer3D {...sharedProps} /> : <BodyViewer2D {...sharedProps} />}
+      {viewMode === "realistic" ? (
+        <BodyViewerRealistic {...sharedProps} />
+      ) : viewMode === "3d" ? (
+        <BodyViewer3D {...sharedProps} />
+      ) : (
+        <BodyViewer2D {...sharedProps} />
+      )}
 
       {layerOpacitySlider}
     </div>

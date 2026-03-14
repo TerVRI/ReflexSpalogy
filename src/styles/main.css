@@ -168,6 +168,14 @@ body {
   background: linear-gradient(135deg, #7c3aed40, #4f46e540);
   border-color: #7c3aed80; color: var(--text-primary);
 }
+.mode-btn--realistic {
+  background: linear-gradient(135deg, #ffffff06, #ffffff0a);
+  border-color: #4a4a8a;
+}
+.mode-btn--realistic.mode-btn--active {
+  background: linear-gradient(135deg, #d946ef30, #7c3aed30);
+  border-color: #d946ef80; color: #f0abfc;
+}
 
 /* ─── Viewer loading state ───────────────────────────────────── */
 .viewer-loading {
