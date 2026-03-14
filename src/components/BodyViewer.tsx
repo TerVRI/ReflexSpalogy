@@ -50,9 +50,6 @@ export function BodyViewer({
 
   // Layer colors for the body silhouette per active system
   const layerColors = BODY_SYSTEMS.filter((s) => activeSystems.has(s.id)).map((s) => s.color);
-  const gradientStops = layerColors
-    .map((c, i) => `${c}${Math.round(20 + (i / layerColors.length) * 30).toString(16)} ${(i / layerColors.length) * 100}%`)
-    .join(", ");
 
   return (
     <div className="body-viewer" ref={containerRef}>
