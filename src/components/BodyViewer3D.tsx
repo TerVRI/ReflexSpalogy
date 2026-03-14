@@ -7,131 +7,274 @@ import { REFLEX_POINTS } from "../data/points";
 import { BODY_SYSTEMS, SYSTEM_MAP } from "../data/systems";
 import { AnnotationTooltip } from "./AnnotationTooltip";
 
-// ─── Shared skin material ──────────────────────────────────────────────────────
-const SKIN_COLOR = new THREE.Color("#b8c8dc");
-const SKIN_EMISSIVE = new THREE.Color("#0d1525");
+// ─── Helper: smooth LatheGeometry from a 2D profile ────────────────────────────
+function lathe(
+  profile: [number, number][],
+  segments = 32,
+  closed = false
+): THREE.LatheGeometry {
+  const curve = new THREE.CatmullRomCurve3(
+    profile.map(([r, y]) => new THREE.Vector3(r, y, 0)),
+    closed
+  );
+  const pts = curve.getPoints(48).map((p) => new THREE.Vector2(p.x, p.y));
+  return new THREE.LatheGeometry(pts, segments);
+}
 
+// ─── Smooth skin material ──────────────────────────────────────────────────────
 function useSkinMaterial() {
   return useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
-        color: SKIN_COLOR,
-        emissive: SKIN_EMISSIVE,
-        emissiveIntensity: 0.12,
-        roughness: 0.68,
-        metalness: 0.02,
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color("#a8bcd0"),
+        emissive: new THREE.Color("#1a2a40"),
+        emissiveIntensity: 0.08,
+        roughness: 0.55,
+        metalness: 0.0,
+        clearcoat: 0.15,
+        clearcoatRoughness: 0.4,
       }),
     []
   );
 }
 
-// ─── Body segment helper ───────────────────────────────────────────────────────
-interface SegmentProps {
-  position: [number, number, number];
-  rotation?: [number, number, number];
-  children: React.ReactNode;
-  material: THREE.Material;
-}
-function Seg({ position, rotation, children, material }: SegmentProps) {
-  return (
-    <mesh position={position} rotation={rotation} material={material} castShadow>
-      {children}
-    </mesh>
-  );
-}
+// ─── The body's vertical extent: feet ≈ -0.88, head top ≈ 1.95 ─────────────
+// Center of mass Y ≈ 0.53.  Camera & controls target this Y.
 
-// ─── Procedural Human Body ────────────────────────────────────────────────────
-function ProceduralBody({ material }: { material: THREE.Material }) {
+// ─── Anatomical Procedural Body ────────────────────────────────────────────────
+function HumanBody({ material }: { material: THREE.Material }) {
+  const geoms = useMemo(() => {
+    // -- Head: sphere (keep) --
+    const head = new THREE.SphereGeometry(0.19, 28, 20);
+    head.translate(0, 1.82, 0);
+
+    // -- Neck: smooth tapered cylinder via lathe --
+    const neck = lathe([
+      [0.075, 1.60],
+      [0.082, 1.65],
+      [0.075, 1.70],
+      [0.065, 1.73],
+    ]);
+
+    // -- Torso: the key shape — chest → waist → hips as one smooth lathe --
+    const torso = lathe([
+      [0.04, 1.58],  // top of shoulders (thin — meets neck)
+      [0.28, 1.52],  // shoulder width
+      [0.30, 1.40],  // upper chest
+      [0.28, 1.25],  // mid chest
+      [0.24, 1.10],  // lower chest / ribs
+      [0.20, 0.98],  // waist
+      [0.19, 0.90],  // narrow waist
+      [0.22, 0.78],  // beginning of abdomen
+      [0.26, 0.65],  // abdomen
+      [0.29, 0.50],  // hip widening
+      [0.30, 0.40],  // widest hips
+      [0.28, 0.32],  // lower pelvis
+      [0.20, 0.22],  // crotch taper
+      [0.04, 0.16],  // inner thigh gap
+    ], 36);
+
+    // -- Upper arm (one side, mirrored) --
+    const upperArm = lathe([
+      [0.095, 0],
+      [0.09, 0.05],
+      [0.085, 0.12],
+      [0.078, 0.22],
+      [0.07, 0.30],
+      [0.065, 0.36],
+    ], 16);
+
+    // -- Forearm --
+    const forearm = lathe([
+      [0.062, 0],
+      [0.058, 0.04],
+      [0.052, 0.12],
+      [0.048, 0.22],
+      [0.042, 0.30],
+      [0.038, 0.36],
+    ], 16);
+
+    // -- Hand: flattened ellipsoid --
+    const hand = new THREE.SphereGeometry(0.06, 12, 10);
+    hand.scale(1.0, 1.3, 0.6);
+
+    // -- Thigh --
+    const thigh = lathe([
+      [0.13, 0],
+      [0.125, 0.06],
+      [0.12, 0.14],
+      [0.11, 0.24],
+      [0.10, 0.32],
+      [0.085, 0.42],
+      [0.075, 0.48],
+    ], 20);
+
+    // -- Calf / shin --
+    const calf = lathe([
+      [0.075, 0],
+      [0.072, 0.04],
+      [0.065, 0.12],
+      [0.058, 0.20],
+      [0.052, 0.28],
+      [0.048, 0.34],
+      [0.050, 0.38],
+    ], 16);
+
+    // -- Foot: stretched box with rounded edges --
+    const foot = new THREE.BoxGeometry(0.12, 0.06, 0.24, 4, 2, 4);
+
+    return { head, neck, torso, upperArm, forearm, hand, thigh, calf, foot };
+  }, []);
+
   return (
     <group name="body">
       {/* Head */}
-      <Seg position={[0, 1.82, 0]} material={material}>
-        <sphereGeometry args={[0.185, 24, 16]} />
-      </Seg>
+      <mesh geometry={geoms.head} material={material} />
+      {/* Ears */}
+      <mesh position={[-0.19, 1.80, 0]} material={material}>
+        <sphereGeometry args={[0.04, 8, 6]} />
+      </mesh>
+      <mesh position={[0.19, 1.80, 0]} material={material}>
+        <sphereGeometry args={[0.04, 8, 6]} />
+      </mesh>
+
       {/* Neck */}
-      <Seg position={[0, 1.62, 0]} material={material}>
-        <capsuleGeometry args={[0.062, 0.12, 4, 10]} />
-      </Seg>
-      {/* Clavicle / shoulder bridge */}
-      <Seg position={[0, 1.52, 0]} rotation={[0, 0, Math.PI / 2]} material={material}>
-        <capsuleGeometry args={[0.04, 0.68, 4, 8]} />
-      </Seg>
-      {/* Shoulder ball L */}
-      <Seg position={[-0.42, 1.52, 0]} material={material}>
-        <sphereGeometry args={[0.1, 14, 10]} />
-      </Seg>
-      {/* Shoulder ball R */}
-      <Seg position={[0.42, 1.52, 0]} material={material}>
-        <sphereGeometry args={[0.1, 14, 10]} />
-      </Seg>
-      {/* Upper chest */}
-      <Seg position={[0, 1.25, 0]} material={material}>
-        <cylinderGeometry args={[0.29, 0.24, 0.55, 20]} />
-      </Seg>
-      {/* Lower torso / abdomen */}
-      <Seg position={[0, 0.82, 0]} material={material}>
-        <cylinderGeometry args={[0.24, 0.27, 0.52, 20]} />
-      </Seg>
-      {/* Pelvis */}
-      <Seg position={[0, 0.48, 0]} material={material}>
-        <cylinderGeometry args={[0.28, 0.26, 0.25, 20]} />
-      </Seg>
-      {/* Upper arm L */}
-      <Seg position={[-0.56, 1.18, 0]} rotation={[0, 0, -0.28]} material={material}>
-        <capsuleGeometry args={[0.074, 0.34, 4, 10]} />
-      </Seg>
-      {/* Upper arm R */}
-      <Seg position={[0.56, 1.18, 0]} rotation={[0, 0, 0.28]} material={material}>
-        <capsuleGeometry args={[0.074, 0.34, 4, 10]} />
-      </Seg>
-      {/* Forearm L */}
-      <Seg position={[-0.64, 0.72, 0.03]} rotation={[0, 0, -0.16]} material={material}>
-        <capsuleGeometry args={[0.054, 0.36, 4, 10]} />
-      </Seg>
-      {/* Forearm R */}
-      <Seg position={[0.64, 0.72, 0.03]} rotation={[0, 0, 0.16]} material={material}>
-        <capsuleGeometry args={[0.054, 0.36, 4, 10]} />
-      </Seg>
-      {/* Hand L */}
-      <Seg position={[-0.67, 0.44, 0.03]} material={material}>
-        <sphereGeometry args={[0.068, 12, 8]} />
-      </Seg>
-      {/* Hand R */}
-      <Seg position={[0.67, 0.44, 0.03]} material={material}>
-        <sphereGeometry args={[0.068, 12, 8]} />
-      </Seg>
-      {/* Thigh L */}
-      <Seg position={[-0.165, 0.05, 0]} rotation={[0, 0, -0.05]} material={material}>
-        <capsuleGeometry args={[0.112, 0.4, 4, 12]} />
-      </Seg>
-      {/* Thigh R */}
-      <Seg position={[0.165, 0.05, 0]} rotation={[0, 0, 0.05]} material={material}>
-        <capsuleGeometry args={[0.112, 0.4, 4, 12]} />
-      </Seg>
-      {/* Shin L */}
-      <Seg position={[-0.162, -0.52, 0.02]} rotation={[0, 0, -0.02]} material={material}>
-        <capsuleGeometry args={[0.074, 0.38, 4, 10]} />
-      </Seg>
-      {/* Shin R */}
-      <Seg position={[0.162, -0.52, 0.02]} rotation={[0, 0, 0.02]} material={material}>
-        <capsuleGeometry args={[0.074, 0.38, 4, 10]} />
-      </Seg>
-      {/* Ankle L */}
-      <Seg position={[-0.162, -0.79, 0.02]} material={material}>
-        <sphereGeometry args={[0.065, 10, 8]} />
-      </Seg>
-      {/* Ankle R */}
-      <Seg position={[0.162, -0.79, 0.02]} material={material}>
-        <sphereGeometry args={[0.065, 10, 8]} />
-      </Seg>
-      {/* Foot L */}
-      <Seg position={[-0.162, -0.86, 0.06]} material={material}>
-        <boxGeometry args={[0.14, 0.065, 0.22]} />
-      </Seg>
-      {/* Foot R */}
-      <Seg position={[0.162, -0.86, 0.06]} material={material}>
-        <boxGeometry args={[0.14, 0.065, 0.22]} />
-      </Seg>
+      <mesh geometry={geoms.neck} material={material} />
+
+      {/* Torso (single smooth lathe) */}
+      <mesh geometry={geoms.torso} material={material} />
+
+      {/* Shoulder caps */}
+      <mesh position={[-0.34, 1.50, 0]} material={material}>
+        <sphereGeometry args={[0.10, 14, 12]} />
+      </mesh>
+      <mesh position={[0.34, 1.50, 0]} material={material}>
+        <sphereGeometry args={[0.10, 14, 12]} />
+      </mesh>
+
+      {/* Upper arms */}
+      <mesh
+        geometry={geoms.upperArm}
+        material={material}
+        position={[-0.44, 1.12, 0]}
+        rotation={[0, 0, 0.12]}
+      />
+      <mesh
+        geometry={geoms.upperArm}
+        material={material}
+        position={[0.44, 1.12, 0]}
+        rotation={[0, 0, -0.12]}
+      />
+
+      {/* Elbow joints */}
+      <mesh position={[-0.48, 0.78, 0]} material={material}>
+        <sphereGeometry args={[0.058, 10, 8]} />
+      </mesh>
+      <mesh position={[0.48, 0.78, 0]} material={material}>
+        <sphereGeometry args={[0.058, 10, 8]} />
+      </mesh>
+
+      {/* Forearms */}
+      <mesh
+        geometry={geoms.forearm}
+        material={material}
+        position={[-0.50, 0.42, 0.02]}
+        rotation={[0, 0, 0.06]}
+      />
+      <mesh
+        geometry={geoms.forearm}
+        material={material}
+        position={[0.50, 0.42, 0.02]}
+        rotation={[0, 0, -0.06]}
+      />
+
+      {/* Wrist joints */}
+      <mesh position={[-0.51, 0.08, 0.02]} material={material}>
+        <sphereGeometry args={[0.038, 8, 6]} />
+      </mesh>
+      <mesh position={[0.51, 0.08, 0.02]} material={material}>
+        <sphereGeometry args={[0.038, 8, 6]} />
+      </mesh>
+
+      {/* Hands */}
+      <mesh
+        geometry={geoms.hand}
+        material={material}
+        position={[-0.51, -0.02, 0.02]}
+      />
+      <mesh
+        geometry={geoms.hand}
+        material={material}
+        position={[0.51, -0.02, 0.02]}
+      />
+
+      {/* Thighs */}
+      <mesh
+        geometry={geoms.thigh}
+        material={material}
+        position={[-0.14, -0.26, 0]}
+        rotation={[0, 0, 0.03]}
+      />
+      <mesh
+        geometry={geoms.thigh}
+        material={material}
+        position={[0.14, -0.26, 0]}
+        rotation={[0, 0, -0.03]}
+      />
+
+      {/* Knee joints */}
+      <mesh position={[-0.15, -0.52, 0.02]} material={material}>
+        <sphereGeometry args={[0.072, 12, 10]} />
+      </mesh>
+      <mesh position={[0.15, -0.52, 0.02]} material={material}>
+        <sphereGeometry args={[0.072, 12, 10]} />
+      </mesh>
+
+      {/* Calves */}
+      <mesh
+        geometry={geoms.calf}
+        material={material}
+        position={[-0.15, -0.88, 0.01]}
+        rotation={[0, 0, 0.01]}
+      />
+      <mesh
+        geometry={geoms.calf}
+        material={material}
+        position={[0.15, -0.88, 0.01]}
+        rotation={[0, 0, -0.01]}
+      />
+
+      {/* Ankle joints */}
+      <mesh position={[-0.15, -0.88, 0.02]} material={material}>
+        <sphereGeometry args={[0.048, 10, 8]} />
+      </mesh>
+      <mesh position={[0.15, -0.88, 0.02]} material={material}>
+        <sphereGeometry args={[0.048, 10, 8]} />
+      </mesh>
+
+      {/* Feet */}
+      <mesh
+        geometry={geoms.foot}
+        material={material}
+        position={[-0.15, -0.92, 0.06]}
+      />
+      <mesh
+        geometry={geoms.foot}
+        material={material}
+        position={[0.15, -0.92, 0.06]}
+      />
+
+      {/* Face features — subtle depressions */}
+      <mesh position={[-0.06, 1.84, 0.16]} material={material}>
+        <sphereGeometry args={[0.028, 8, 6]} />
+      </mesh>
+      <mesh position={[0.06, 1.84, 0.16]} material={material}>
+        <sphereGeometry args={[0.028, 8, 6]} />
+      </mesh>
+      {/* Nose */}
+      <mesh position={[0, 1.79, 0.18]} material={material}>
+        <sphereGeometry args={[0.022, 8, 6]} />
+      </mesh>
     </group>
   );
 }
@@ -145,76 +288,52 @@ interface OrganOverlay {
 }
 
 const ORGAN_OVERLAYS: OrganOverlay[] = [
-  // Brain
-  { systemId: "neuromuscular", position: [0, 1.83, 0.05], scale: [1.1, 1.0, 0.9], opacity: 0.5 },
-  // Thyroid
-  { systemId: "endocrine", position: [0, 1.50, 0.13], scale: [0.8, 0.4, 0.6], opacity: 0.6 },
-  // Pituitary (small)
-  { systemId: "endocrine", position: [0, 1.75, 0.06], scale: [0.3, 0.3, 0.3], opacity: 0.7 },
-  // Adrenals L
-  { systemId: "endocrine", position: [-0.1, 0.62, -0.04], scale: [0.4, 0.3, 0.35], opacity: 0.55 },
-  // Adrenals R
-  { systemId: "endocrine", position: [0.1, 0.62, -0.04], scale: [0.4, 0.3, 0.35], opacity: 0.55 },
-  // Heart
-  { systemId: "cardiovascular", position: [-0.13, 1.04, 0.12], scale: [0.7, 0.8, 0.65], opacity: 0.72 },
-  // Lung L
-  { systemId: "respiratory", position: [-0.17, 1.05, 0.04], scale: [0.65, 1.1, 0.5], opacity: 0.38 },
-  // Lung R
-  { systemId: "respiratory", position: [0.17, 1.05, 0.04], scale: [0.65, 1.1, 0.5], opacity: 0.38 },
-  // Stomach
-  { systemId: "digestive", position: [-0.1, 0.78, 0.1], scale: [0.8, 0.65, 0.55], opacity: 0.45 },
-  // Liver
-  { systemId: "digestive", position: [0.15, 0.82, 0.06], scale: [0.85, 0.6, 0.55], opacity: 0.4 },
-  // Intestines (large blob)
-  { systemId: "digestive", position: [0, 0.65, 0.06], scale: [1.1, 0.9, 0.55], opacity: 0.28 },
-  // Kidney L
-  { systemId: "urinary", position: [-0.12, 0.6, -0.08], scale: [0.5, 0.7, 0.4], opacity: 0.5 },
-  // Kidney R
-  { systemId: "urinary", position: [0.12, 0.6, -0.08], scale: [0.5, 0.7, 0.4], opacity: 0.5 },
-  // Bladder
-  { systemId: "urinary", position: [0, 0.3, 0.1], scale: [0.6, 0.55, 0.5], opacity: 0.45 },
-  // Uterus/ovary L
-  { systemId: "reproductive", position: [-0.1, 0.28, 0.08], scale: [0.45, 0.4, 0.4], opacity: 0.5 },
-  // Uterus/ovary R
-  { systemId: "reproductive", position: [0.1, 0.28, 0.08], scale: [0.45, 0.4, 0.4], opacity: 0.5 },
-  // Spleen
-  { systemId: "lymphatic", position: [-0.22, 0.72, -0.04], scale: [0.5, 0.55, 0.4], opacity: 0.42 },
-  // Lymph node cluster upper L
-  { systemId: "lymphatic", position: [-0.42, 1.45, 0.06], scale: [0.28, 0.28, 0.28], opacity: 0.55 },
-  // Lymph node cluster upper R
-  { systemId: "lymphatic", position: [0.42, 1.45, 0.06], scale: [0.28, 0.28, 0.28], opacity: 0.55 },
-  // Lymph node cluster lower L
-  { systemId: "lymphatic", position: [-0.2, 0.26, 0.08], scale: [0.25, 0.25, 0.25], opacity: 0.5 },
-  // Lymph node cluster lower R
-  { systemId: "lymphatic", position: [0.2, 0.26, 0.08], scale: [0.25, 0.25, 0.25], opacity: 0.5 },
+  { systemId: "neuromuscular", position: [0, 1.83, 0.05], scale: [1.1, 1.0, 0.9], opacity: 0.45 },
+  { systemId: "endocrine", position: [0, 1.55, 0.12], scale: [0.7, 0.35, 0.5], opacity: 0.55 },
+  { systemId: "endocrine", position: [0, 1.75, 0.06], scale: [0.25, 0.25, 0.25], opacity: 0.65 },
+  { systemId: "endocrine", position: [-0.08, 0.72, -0.02], scale: [0.35, 0.25, 0.3], opacity: 0.5 },
+  { systemId: "endocrine", position: [0.08, 0.72, -0.02], scale: [0.35, 0.25, 0.3], opacity: 0.5 },
+  { systemId: "cardiovascular", position: [-0.08, 1.12, 0.1], scale: [0.6, 0.7, 0.55], opacity: 0.65 },
+  { systemId: "respiratory", position: [-0.14, 1.18, 0.04], scale: [0.5, 0.9, 0.4], opacity: 0.35 },
+  { systemId: "respiratory", position: [0.14, 1.18, 0.04], scale: [0.5, 0.9, 0.4], opacity: 0.35 },
+  { systemId: "digestive", position: [-0.06, 0.88, 0.08], scale: [0.6, 0.5, 0.45], opacity: 0.4 },
+  { systemId: "digestive", position: [0.10, 0.92, 0.05], scale: [0.7, 0.5, 0.45], opacity: 0.35 },
+  { systemId: "digestive", position: [0, 0.72, 0.05], scale: [0.9, 0.7, 0.45], opacity: 0.25 },
+  { systemId: "urinary", position: [-0.10, 0.70, -0.06], scale: [0.4, 0.55, 0.35], opacity: 0.45 },
+  { systemId: "urinary", position: [0.10, 0.70, -0.06], scale: [0.4, 0.55, 0.35], opacity: 0.45 },
+  { systemId: "urinary", position: [0, 0.38, 0.08], scale: [0.5, 0.45, 0.4], opacity: 0.4 },
+  { systemId: "reproductive", position: [-0.08, 0.34, 0.06], scale: [0.35, 0.3, 0.3], opacity: 0.45 },
+  { systemId: "reproductive", position: [0.08, 0.34, 0.06], scale: [0.35, 0.3, 0.3], opacity: 0.45 },
+  { systemId: "lymphatic", position: [-0.18, 0.82, -0.03], scale: [0.4, 0.45, 0.35], opacity: 0.38 },
+  { systemId: "lymphatic", position: [-0.34, 1.48, 0.04], scale: [0.22, 0.22, 0.22], opacity: 0.5 },
+  { systemId: "lymphatic", position: [0.34, 1.48, 0.04], scale: [0.22, 0.22, 0.22], opacity: 0.5 },
+  { systemId: "lymphatic", position: [-0.16, 0.30, 0.06], scale: [0.2, 0.2, 0.2], opacity: 0.45 },
+  { systemId: "lymphatic", position: [0.16, 0.30, 0.06], scale: [0.2, 0.2, 0.2], opacity: 0.45 },
 ];
 
 function SystemOrgans({ activeSystems }: { activeSystems: Set<string> }) {
   const sphereGeom = useMemo(() => new THREE.SphereGeometry(0.1, 10, 8), []);
   const matCache = useRef(new Map<string, THREE.MeshStandardMaterial>());
 
-  const getMat = useCallback(
-    (systemId: string, opacity: number) => {
-      const key = `${systemId}_${opacity}`;
-      if (!matCache.current.has(key)) {
-        const sys = SYSTEM_MAP[systemId];
-        const color = new THREE.Color(sys?.color || "#888");
-        matCache.current.set(
-          key,
-          new THREE.MeshStandardMaterial({
-            color,
-            emissive: color,
-            emissiveIntensity: 0.3,
-            transparent: true,
-            opacity,
-            depthWrite: false,
-          })
-        );
-      }
-      return matCache.current.get(key)!;
-    },
-    []
-  );
+  const getMat = useCallback((systemId: string, opacity: number) => {
+    const key = `${systemId}_${opacity}`;
+    if (!matCache.current.has(key)) {
+      const sys = SYSTEM_MAP[systemId];
+      const color = new THREE.Color(sys?.color || "#888");
+      matCache.current.set(
+        key,
+        new THREE.MeshStandardMaterial({
+          color,
+          emissive: color,
+          emissiveIntensity: 0.35,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+        })
+      );
+    }
+    return matCache.current.get(key)!;
+  }, []);
 
   return (
     <>
@@ -256,11 +375,11 @@ function Hotspot({
   const meshRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
 
-  // Map 2D percentage to 3D world position
+  // Map 2D percentage positions to the new body's 3D coordinates
   const pos3: [number, number, number] = useMemo(
     () => [
-      (point.position2D.x / 100 - 0.5) * 1.6,
-      (1 - point.position2D.y / 100) * 3.72 - 1.0,
+      (point.position2D.x / 100 - 0.5) * 1.2,
+      (1 - point.position2D.y / 100) * 3.0 - 0.7,
       0.22,
     ],
     [point.position2D]
@@ -275,7 +394,7 @@ function Hotspot({
     if (isHovered) {
       const pulse = 0.6 + Math.sin(clock.elapsedTime * 4) * 0.25;
       mat.emissiveIntensity = pulse;
-      meshRef.current.scale.setScalar(1.35);
+      meshRef.current.scale.setScalar(1.4);
     } else {
       mat.emissiveIntensity = isExplored ? 0.2 : 0.08;
       meshRef.current.scale.setScalar(1.0);
@@ -322,11 +441,9 @@ function Hotspot({
 
   return (
     <group position={pos3}>
-      {/* Explored ring */}
       <mesh ref={ringRef} visible={false} material={ringMat}>
         <sphereGeometry args={[0.052, 10, 8]} />
       </mesh>
-      {/* Main hotspot sphere */}
       <mesh
         ref={meshRef}
         material={mat}
@@ -334,11 +451,10 @@ function Hotspot({
         onPointerLeave={() => onLeave()}
         onClick={(e) => { e.stopPropagation(); onSelect(point); }}
       >
-        <sphereGeometry args={[0.038, 14, 10]} />
+        <sphereGeometry args={[0.036, 14, 10]} />
       </mesh>
-      {/* White inner dot */}
       <mesh>
-        <sphereGeometry args={[0.014, 8, 6]} />
+        <sphereGeometry args={[0.013, 8, 6]} />
         <meshBasicMaterial color="white" />
       </mesh>
     </group>
@@ -350,6 +466,21 @@ function CursorManager({ hovered }: { hovered: boolean }) {
   const { gl } = useThree();
   gl.domElement.style.cursor = hovered ? "pointer" : "auto";
   return null;
+}
+
+// ─── Ground plane (subtle shadow catcher) ─────────────────────────────────────
+function Ground() {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.96, 0]} receiveShadow>
+      <circleGeometry args={[1.2, 48]} />
+      <meshStandardMaterial
+        color="#1a2040"
+        transparent
+        opacity={0.35}
+        roughness={1}
+      />
+    </mesh>
+  );
 }
 
 // ─── Main 3D scene ─────────────────────────────────────────────────────────────
@@ -381,30 +512,34 @@ function Scene({ activeSystems, hoveredPoint, exploredPoints, containerRef, onHo
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight color="#4a6a90" intensity={0.9} />
-      <directionalLight color="#e8f0ff" intensity={2.2} position={[3, 5, 3]} castShadow />
-      <directionalLight color="#c8d8ff" intensity={0.5} position={[-3, 2, 2]} />
-      <pointLight color="#2050a0" intensity={0.8} position={[0, 1, -3]} />
-      <pointLight color="#ffffff" intensity={0.4} position={[0, -1, 2]} />
+      {/* Lighting — three-point setup with soft fill */}
+      <ambientLight color="#5a7a9a" intensity={0.7} />
+      <directionalLight color="#e8f0ff" intensity={2.0} position={[2, 4, 4]} />
+      <directionalLight color="#c0d0e8" intensity={0.6} position={[-3, 2, 1]} />
+      <pointLight color="#3060a0" intensity={0.6} position={[0, 0.5, -3]} />
+      <hemisphereLight color="#b0c4de" groundColor="#1a1a3a" intensity={0.5} />
 
-      {/* Camera controls */}
+      {/* Camera controls — target the body's center of mass */}
       <OrbitControls
+        target={[0, 0.5, 0]}
         enablePan={false}
         enableZoom={true}
-        minDistance={2.2}
+        minDistance={2.0}
         maxDistance={6}
-        minPolarAngle={Math.PI * 0.18}
-        maxPolarAngle={Math.PI * 0.82}
+        minPolarAngle={Math.PI * 0.15}
+        maxPolarAngle={Math.PI * 0.85}
         autoRotate={!hoveredPoint}
-        autoRotateSpeed={0.5}
+        autoRotateSpeed={0.4}
         makeDefault
       />
 
       <CursorManager hovered={!!hoveredPoint} />
 
-      {/* Body */}
-      <ProceduralBody material={skinMat} />
+      {/* Ground shadow catcher */}
+      <Ground />
+
+      {/* Human body */}
+      <HumanBody material={skinMat} />
 
       {/* System organ overlays */}
       <SystemOrgans activeSystems={activeSystems} />
@@ -470,7 +605,7 @@ export function BodyViewer3D({
       </div>
 
       <Canvas
-        camera={{ position: [0, 0.5, 3.8], fov: 44, near: 0.1, far: 50 }}
+        camera={{ position: [0, 0.6, 3.4], fov: 42, near: 0.1, far: 50 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ antialias: true, alpha: true }}
         shadows={false}
@@ -488,7 +623,6 @@ export function BodyViewer3D({
         </Suspense>
       </Canvas>
 
-      {/* HTML tooltip overlay */}
       {hoveredPoint && hoverPosition && (
         <AnnotationTooltip point={hoveredPoint} position={hoverPosition} />
       )}
