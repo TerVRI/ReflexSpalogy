@@ -2,7 +2,8 @@ export interface ReflexPoint {
   id: string;
   name: string;
   systemIds: string[];
-  position2D: { x: number; y: number }; // percentage on SVG body
+  position2D: { x: number; y: number }; // percentage on SVG body (200×520 viewBox)
+  position3D?: { x: number; y: number; z: number }; // explicit 3D world coords (overrides linear mapping)
   footPosition?: { foot: "left" | "right" | "both"; x: number; y: number };
   biology: {
     role: string;
@@ -19,7 +20,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "skull",
     name: "Skull",
     systemIds: ["skeletal"],
-    position2D: { x: 50, y: 4 },
+    position2D: { x: 50, y: 5 },
+    position3D: { x: 0, y: 1.90, z: 0.18 },
     biology: {
       role: "Protective casing for the brain; 22 fused bones",
       chemicals: ["Calcium", "Phosphorus", "Collagen"],
@@ -33,7 +35,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "spine",
     name: "Vertebral Column",
     systemIds: ["skeletal"],
-    position2D: { x: 50, y: 45 },
+    position2D: { x: 50, y: 38 },
+    position3D: { x: 0, y: 0.90, z: -0.08 },
     biology: {
       role: "33 vertebrae protecting the spinal cord; shock absorption and movement",
       chemicals: ["Calcium", "Collagen", "Nucleus pulposus (water-rich gel)"],
@@ -49,7 +52,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "bicep",
     name: "Biceps Brachii",
     systemIds: ["muscular"],
-    position2D: { x: 22, y: 40 },
+    position2D: { x: 22, y: 26 },
+    position3D: { x: -0.40, y: 1.20, z: 0.10 },
     biology: {
       role: "Elbow flexion and forearm supination; classic mirror muscle",
       chemicals: ["ATP", "Actin", "Myosin", "Calcium ions"],
@@ -64,6 +68,7 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     name: "Quadriceps Group",
     systemIds: ["muscular"],
     position2D: { x: 42, y: 70 },
+    position3D: { x: -0.14, y: -0.10, z: 0.12 },
     biology: {
       role: "Knee extension; largest muscle group; key for walking, jumping, climbing",
       chemicals: ["ATP", "Lactic acid", "Creatine phosphate", "Glycogen"],
@@ -80,6 +85,7 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     name: "Brain",
     systemIds: ["neuromuscular"],
     position2D: { x: 50, y: 5 },
+    position3D: { x: 0, y: 1.85, z: 0.08 },
     biology: {
       role: "Central processor — 100 billion neurons; cognition, emotion, motor control",
       chemicals: ["Dopamine", "Serotonin", "Acetylcholine", "GABA", "Glutamate", "Norepinephrine"],
@@ -94,6 +100,7 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     name: "Sciatic Nerve",
     systemIds: ["neuromuscular"],
     position2D: { x: 58, y: 72 },
+    position3D: { x: 0.15, y: -0.15, z: -0.08 },
     biology: {
       role: "Longest nerve in the body; innervates entire lower limb",
       chemicals: ["Acetylcholine", "Substance P", "Glutamate"],
@@ -109,7 +116,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "pituitary",
     name: "Pituitary Gland",
     systemIds: ["endocrine"],
-    position2D: { x: 50, y: 9 },
+    position2D: { x: 50, y: 8 },
+    position3D: { x: 0, y: 1.78, z: 0.05 },
     biology: {
       role: "Master gland — controls all other endocrine glands via hormones",
       hormones: ["GH (growth hormone)", "TSH", "ACTH", "FSH", "LH", "ADH", "Oxytocin", "Prolactin"],
@@ -123,7 +131,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "adrenal_glands",
     name: "Adrenal Glands",
     systemIds: ["endocrine"],
-    position2D: { x: 50, y: 52 },
+    position2D: { x: 50, y: 37 },
+    position3D: { x: 0, y: 0.82, z: -0.04 },
     biology: {
       role: "Stress hormones, fight-or-flight, electrolyte balance",
       hormones: ["Cortisol", "Adrenaline (Epinephrine)", "Noradrenaline", "Aldosterone", "DHEA"],
@@ -137,7 +146,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "thyroid",
     name: "Thyroid Gland",
     systemIds: ["endocrine"],
-    position2D: { x: 50, y: 16 },
+    position2D: { x: 50, y: 13 },
+    position3D: { x: 0, y: 1.65, z: 0.10 },
     biology: {
       role: "Metabolic rate, heart rate, temperature regulation, growth",
       hormones: ["Thyroxine (T4)", "Triiodothyronine (T3)", "Calcitonin"],
@@ -153,7 +163,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "heart",
     name: "Heart",
     systemIds: ["cardiovascular"],
-    position2D: { x: 46, y: 28 },
+    position2D: { x: 46, y: 23 },
+    position3D: { x: -0.06, y: 1.15, z: 0.14 },
     biology: {
       role: "Four-chamber pump; beats 100,000 times per day; drives entire circulatory system",
       chemicals: ["Epinephrine", "Norepinephrine", "Nitric oxide", "ANP (atrial natriuretic peptide)", "Troponin I & T"],
@@ -167,7 +178,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "aorta",
     name: "Aorta",
     systemIds: ["cardiovascular"],
-    position2D: { x: 50, y: 33 },
+    position2D: { x: 50, y: 27 },
+    position3D: { x: 0, y: 1.25, z: 0.10 },
     biology: {
       role: "Largest artery; carries oxygenated blood from left ventricle to body",
       chemicals: ["Nitric oxide", "Endothelin", "Prostacyclin", "Angiotensin II"],
@@ -183,7 +195,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "lymph_nodes",
     name: "Lymph Nodes",
     systemIds: ["lymphatic"],
-    position2D: { x: 38, y: 25 },
+    position2D: { x: 36, y: 19 },
+    position3D: { x: -0.20, y: 1.50, z: 0.05 },
     biology: {
       role: "Immune filtration stations; trap pathogens and activate immune response",
       chemicals: ["Lymphocytes", "Antibodies", "Cytokines", "Interleukins"],
@@ -197,7 +210,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "spleen",
     name: "Spleen",
     systemIds: ["lymphatic"],
-    position2D: { x: 38, y: 42 },
+    position2D: { x: 60, y: 36 },
+    position3D: { x: 0.16, y: 0.98, z: -0.02 },
     biology: {
       role: "Blood filter; destroys old red blood cells; immune reservoir",
       chemicals: ["Lymphocytes", "Macrophages", "Iron", "Bilirubin"],
@@ -213,7 +227,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "lungs",
     name: "Lungs",
     systemIds: ["respiratory"],
-    position2D: { x: 50, y: 26 },
+    position2D: { x: 50, y: 24 },
+    position3D: { x: 0, y: 1.22, z: 0.08 },
     biology: {
       role: "Gas exchange — O₂ in, CO₂ out; 300 million alveoli; total surface area of a tennis court",
       chemicals: ["O₂", "CO₂", "Surfactant", "Bicarbonate", "Haemoglobin"],
@@ -227,7 +242,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "diaphragm",
     name: "Diaphragm",
     systemIds: ["respiratory", "muscular"],
-    position2D: { x: 50, y: 38 },
+    position2D: { x: 50, y: 33 },
+    position3D: { x: 0, y: 1.00, z: 0.08 },
     biology: {
       role: "Primary breathing muscle; dome-shaped; controlled by phrenic nerve",
       chemicals: ["Acetylcholine", "ATP"],
@@ -243,7 +259,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "stomach",
     name: "Stomach",
     systemIds: ["digestive"],
-    position2D: { x: 47, y: 43 },
+    position2D: { x: 54, y: 35 },
+    position3D: { x: -0.05, y: 0.92, z: 0.10 },
     biology: {
       role: "Acid digestion of proteins; mechanical churning; kills most bacteria",
       chemicals: ["HCl (pH 1.5–3.5)", "Pepsin", "Gastrin", "Mucus", "Intrinsic factor"],
@@ -257,7 +274,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "liver",
     name: "Liver",
     systemIds: ["digestive"],
-    position2D: { x: 43, y: 42 },
+    position2D: { x: 42, y: 35 },
+    position3D: { x: 0.10, y: 0.95, z: 0.08 },
     biology: {
       role: "500+ functions: detoxification, bile production, protein synthesis, glucose storage",
       chemicals: ["Bile", "Albumin", "Clotting factors", "Glutathione", "Glycogen", "Cholesterol"],
@@ -273,7 +291,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "kidneys",
     name: "Kidneys",
     systemIds: ["urinary"],
-    position2D: { x: 50, y: 52 },
+    position2D: { x: 50, y: 39 },
+    position3D: { x: 0, y: 0.76, z: -0.06 },
     biology: {
       role: "Filter 200 litres of blood daily; regulate blood pressure, fluid balance and red blood cell production",
       chemicals: ["Renin", "Erythropoietin (EPO)", "Aldosterone", "ADH", "Urea", "Creatinine"],
@@ -287,7 +306,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "bladder",
     name: "Urinary Bladder",
     systemIds: ["urinary"],
-    position2D: { x: 50, y: 63 },
+    position2D: { x: 50, y: 55 },
+    position3D: { x: 0, y: 0.36, z: 0.10 },
     biology: {
       role: "Urine storage; holds 400–600ml; stretch receptors signal urge to void",
       chemicals: ["Urea", "Uric acid", "Creatinine", "Electrolytes"],
@@ -303,7 +323,8 @@ export const REFLEX_POINTS: ReflexPoint[] = [
     id: "ovaries",
     name: "Ovaries",
     systemIds: ["reproductive", "endocrine"],
-    position2D: { x: 50, y: 64 },
+    position2D: { x: 50, y: 52 },
+    position3D: { x: 0, y: 0.30, z: 0.10 },
     biology: {
       role: "Egg production and female sex hormone synthesis",
       hormones: ["Oestrogen", "Progesterone", "Inhibin", "Relaxin"],

@@ -6,6 +6,7 @@ import type { ReflexPoint } from "../data/points";
 import { REFLEX_POINTS } from "../data/points";
 import { BODY_SYSTEMS, SYSTEM_MAP } from "../data/systems";
 import { AnnotationTooltip } from "./AnnotationTooltip";
+import { AnatomyOverlays3D } from "./AnatomyOverlays3D";
 
 // ─── Helper: smooth LatheGeometry from a 2D profile ────────────────────────────
 function lathe(
@@ -38,90 +39,87 @@ function useSkinMaterial() {
   );
 }
 
-// ─── The body's vertical extent: feet ≈ -0.88, head top ≈ 1.95 ─────────────
-// Center of mass Y ≈ 0.53.  Camera & controls target this Y.
-
 // ─── Anatomical Procedural Body ────────────────────────────────────────────────
+// All limb segments are sized and positioned so they CONNECT at joints.
+// Convention: LatheGeometry y=0 is the DISTAL end (furthest from torso).
 function HumanBody({ material }: { material: THREE.Material }) {
   const geoms = useMemo(() => {
-    // -- Head: sphere (keep) --
     const head = new THREE.SphereGeometry(0.19, 28, 20);
     head.translate(0, 1.82, 0);
 
-    // -- Neck: smooth tapered cylinder via lathe --
     const neck = lathe([
-      [0.075, 1.60],
-      [0.082, 1.65],
-      [0.075, 1.70],
-      [0.065, 1.73],
+      [0.075, 1.58],
+      [0.082, 1.64],
+      [0.078, 1.70],
+      [0.068, 1.74],
     ]);
 
-    // -- Torso: the key shape — chest → waist → hips as one smooth lathe --
     const torso = lathe([
-      [0.04, 1.58],  // top of shoulders (thin — meets neck)
-      [0.28, 1.52],  // shoulder width
-      [0.30, 1.40],  // upper chest
-      [0.28, 1.25],  // mid chest
-      [0.24, 1.10],  // lower chest / ribs
-      [0.20, 0.98],  // waist
-      [0.19, 0.90],  // narrow waist
-      [0.22, 0.78],  // beginning of abdomen
-      [0.26, 0.65],  // abdomen
-      [0.29, 0.50],  // hip widening
-      [0.30, 0.40],  // widest hips
-      [0.28, 0.32],  // lower pelvis
-      [0.20, 0.22],  // crotch taper
-      [0.04, 0.16],  // inner thigh gap
+      [0.04, 1.58],
+      [0.28, 1.52],
+      [0.30, 1.40],
+      [0.28, 1.25],
+      [0.24, 1.10],
+      [0.20, 0.98],
+      [0.19, 0.90],
+      [0.22, 0.78],
+      [0.26, 0.65],
+      [0.29, 0.50],
+      [0.30, 0.40],
+      [0.28, 0.32],
+      [0.20, 0.22],
+      [0.04, 0.16],
     ], 36);
 
-    // -- Upper arm (one side, mirrored) --
+    // Upper arm: spans from shoulder (y=1.48) to elbow (y=0.86). Length=0.62
     const upperArm = lathe([
-      [0.095, 0],
-      [0.09, 0.05],
-      [0.085, 0.12],
-      [0.078, 0.22],
-      [0.07, 0.30],
-      [0.065, 0.36],
-    ], 16);
+      [0.072, 0],       // elbow (distal)
+      [0.076, 0.08],
+      [0.084, 0.20],
+      [0.092, 0.34],    // bicep peak
+      [0.090, 0.46],
+      [0.082, 0.56],
+      [0.070, 0.62],    // shoulder junction (proximal)
+    ], 18);
 
-    // -- Forearm --
+    // Forearm: spans from elbow (y=0.86) to wrist (y=0.30). Length=0.56
     const forearm = lathe([
-      [0.062, 0],
-      [0.058, 0.04],
-      [0.052, 0.12],
-      [0.048, 0.22],
-      [0.042, 0.30],
-      [0.038, 0.36],
+      [0.044, 0],       // wrist (distal)
+      [0.048, 0.06],
+      [0.054, 0.16],
+      [0.062, 0.30],    // forearm bulk
+      [0.068, 0.42],
+      [0.072, 0.52],
+      [0.072, 0.56],    // elbow junction (matches upper arm elbow radius)
     ], 16);
 
-    // -- Hand: flattened ellipsoid --
-    const hand = new THREE.SphereGeometry(0.06, 12, 10);
-    hand.scale(1.0, 1.3, 0.6);
+    // Hand: flattened ellipsoid
+    const hand = new THREE.SphereGeometry(0.04, 12, 10);
+    hand.scale(0.9, 1.3, 0.5);
 
-    // -- Thigh --
+    // Thigh: spans from hip (y=0.22) to knee (y=-0.40). Length=0.62
     const thigh = lathe([
-      [0.13, 0],
-      [0.125, 0.06],
-      [0.12, 0.14],
-      [0.11, 0.24],
-      [0.10, 0.32],
-      [0.085, 0.42],
-      [0.075, 0.48],
+      [0.074, 0],       // knee (distal)
+      [0.080, 0.08],
+      [0.090, 0.18],
+      [0.104, 0.32],    // mid-thigh
+      [0.118, 0.44],
+      [0.128, 0.54],
+      [0.132, 0.62],    // hip junction (proximal)
     ], 20);
 
-    // -- Calf / shin --
+    // Calf: spans from knee (y=-0.40) to ankle (y=-0.84). Length=0.44
     const calf = lathe([
-      [0.075, 0],
-      [0.072, 0.04],
-      [0.065, 0.12],
-      [0.058, 0.20],
-      [0.052, 0.28],
-      [0.048, 0.34],
-      [0.050, 0.38],
+      [0.050, 0],       // ankle (distal)
+      [0.050, 0.04],
+      [0.056, 0.12],
+      [0.066, 0.24],    // calf bulge
+      [0.072, 0.36],
+      [0.074, 0.42],
+      [0.074, 0.44],    // knee junction (matches thigh knee radius)
     ], 16);
 
-    // -- Foot: stretched box with rounded edges --
-    const foot = new THREE.BoxGeometry(0.12, 0.06, 0.24, 4, 2, 4);
+    const foot = new THREE.BoxGeometry(0.09, 0.04, 0.20, 4, 2, 4);
 
     return { head, neck, torso, upperArm, forearm, hand, thigh, calf, foot };
   }, []);
@@ -130,148 +128,70 @@ function HumanBody({ material }: { material: THREE.Material }) {
     <group name="body">
       {/* Head */}
       <mesh geometry={geoms.head} material={material} />
-      {/* Ears */}
       <mesh position={[-0.19, 1.80, 0]} material={material}>
-        <sphereGeometry args={[0.04, 8, 6]} />
+        <sphereGeometry args={[0.03, 8, 6]} />
       </mesh>
       <mesh position={[0.19, 1.80, 0]} material={material}>
-        <sphereGeometry args={[0.04, 8, 6]} />
+        <sphereGeometry args={[0.03, 8, 6]} />
       </mesh>
 
       {/* Neck */}
       <mesh geometry={geoms.neck} material={material} />
 
-      {/* Torso (single smooth lathe) */}
+      {/* Torso */}
       <mesh geometry={geoms.torso} material={material} />
 
       {/* Shoulder caps */}
       <mesh position={[-0.34, 1.50, 0]} material={material}>
-        <sphereGeometry args={[0.10, 14, 12]} />
+        <sphereGeometry args={[0.078, 14, 12]} />
       </mesh>
       <mesh position={[0.34, 1.50, 0]} material={material}>
-        <sphereGeometry args={[0.10, 14, 12]} />
+        <sphereGeometry args={[0.078, 14, 12]} />
       </mesh>
 
-      {/* Upper arms */}
-      <mesh
-        geometry={geoms.upperArm}
-        material={material}
-        position={[-0.44, 1.12, 0]}
-        rotation={[0, 0, 0.12]}
-      />
-      <mesh
-        geometry={geoms.upperArm}
-        material={material}
-        position={[0.44, 1.12, 0]}
-        rotation={[0, 0, -0.12]}
-      />
+      {/* Upper arms: position.y + 0.62 = 1.48 (shoulder), position.y = 0.86 (elbow) */}
+      <mesh geometry={geoms.upperArm} material={material}
+        position={[-0.38, 0.86, 0]} rotation={[0, 0, 0.06]} />
+      <mesh geometry={geoms.upperArm} material={material}
+        position={[0.38, 0.86, 0]} rotation={[0, 0, -0.06]} />
 
-      {/* Elbow joints */}
-      <mesh position={[-0.48, 0.78, 0]} material={material}>
-        <sphereGeometry args={[0.058, 10, 8]} />
-      </mesh>
-      <mesh position={[0.48, 0.78, 0]} material={material}>
-        <sphereGeometry args={[0.058, 10, 8]} />
-      </mesh>
+      {/* Forearms: position.y + 0.56 = 0.86 (elbow), position.y = 0.30 (wrist) */}
+      <mesh geometry={geoms.forearm} material={material}
+        position={[-0.42, 0.30, 0.01]} rotation={[0, 0, 0.03]} />
+      <mesh geometry={geoms.forearm} material={material}
+        position={[0.42, 0.30, 0.01]} rotation={[0, 0, -0.03]} />
 
-      {/* Forearms */}
-      <mesh
-        geometry={geoms.forearm}
-        material={material}
-        position={[-0.50, 0.42, 0.02]}
-        rotation={[0, 0, 0.06]}
-      />
-      <mesh
-        geometry={geoms.forearm}
-        material={material}
-        position={[0.50, 0.42, 0.02]}
-        rotation={[0, 0, -0.06]}
-      />
+      {/* Hands: just below wrist at y=0.30 */}
+      <mesh geometry={geoms.hand} material={material}
+        position={[-0.44, 0.22, 0.01]} />
+      <mesh geometry={geoms.hand} material={material}
+        position={[0.44, 0.22, 0.01]} />
 
-      {/* Wrist joints */}
-      <mesh position={[-0.51, 0.08, 0.02]} material={material}>
-        <sphereGeometry args={[0.038, 8, 6]} />
-      </mesh>
-      <mesh position={[0.51, 0.08, 0.02]} material={material}>
-        <sphereGeometry args={[0.038, 8, 6]} />
-      </mesh>
+      {/* Thighs: position.y + 0.62 = 0.22 (hip), position.y = -0.40 (knee) */}
+      <mesh geometry={geoms.thigh} material={material}
+        position={[-0.14, -0.40, 0]} rotation={[0, 0, 0.02]} />
+      <mesh geometry={geoms.thigh} material={material}
+        position={[0.14, -0.40, 0]} rotation={[0, 0, -0.02]} />
 
-      {/* Hands */}
-      <mesh
-        geometry={geoms.hand}
-        material={material}
-        position={[-0.51, -0.02, 0.02]}
-      />
-      <mesh
-        geometry={geoms.hand}
-        material={material}
-        position={[0.51, -0.02, 0.02]}
-      />
+      {/* Calves: position.y + 0.44 = -0.40 (knee), position.y = -0.84 (ankle) */}
+      <mesh geometry={geoms.calf} material={material}
+        position={[-0.15, -0.84, 0.01]} />
+      <mesh geometry={geoms.calf} material={material}
+        position={[0.15, -0.84, 0.01]} />
 
-      {/* Thighs */}
-      <mesh
-        geometry={geoms.thigh}
-        material={material}
-        position={[-0.14, -0.26, 0]}
-        rotation={[0, 0, 0.03]}
-      />
-      <mesh
-        geometry={geoms.thigh}
-        material={material}
-        position={[0.14, -0.26, 0]}
-        rotation={[0, 0, -0.03]}
-      />
+      {/* Feet: at ankle level */}
+      <mesh geometry={geoms.foot} material={material}
+        position={[-0.15, -0.87, 0.06]} />
+      <mesh geometry={geoms.foot} material={material}
+        position={[0.15, -0.87, 0.06]} />
 
-      {/* Knee joints */}
-      <mesh position={[-0.15, -0.52, 0.02]} material={material}>
-        <sphereGeometry args={[0.072, 12, 10]} />
-      </mesh>
-      <mesh position={[0.15, -0.52, 0.02]} material={material}>
-        <sphereGeometry args={[0.072, 12, 10]} />
-      </mesh>
-
-      {/* Calves */}
-      <mesh
-        geometry={geoms.calf}
-        material={material}
-        position={[-0.15, -0.88, 0.01]}
-        rotation={[0, 0, 0.01]}
-      />
-      <mesh
-        geometry={geoms.calf}
-        material={material}
-        position={[0.15, -0.88, 0.01]}
-        rotation={[0, 0, -0.01]}
-      />
-
-      {/* Ankle joints */}
-      <mesh position={[-0.15, -0.88, 0.02]} material={material}>
-        <sphereGeometry args={[0.048, 10, 8]} />
-      </mesh>
-      <mesh position={[0.15, -0.88, 0.02]} material={material}>
-        <sphereGeometry args={[0.048, 10, 8]} />
-      </mesh>
-
-      {/* Feet */}
-      <mesh
-        geometry={geoms.foot}
-        material={material}
-        position={[-0.15, -0.92, 0.06]}
-      />
-      <mesh
-        geometry={geoms.foot}
-        material={material}
-        position={[0.15, -0.92, 0.06]}
-      />
-
-      {/* Face features — subtle depressions */}
+      {/* Face features */}
       <mesh position={[-0.06, 1.84, 0.16]} material={material}>
         <sphereGeometry args={[0.028, 8, 6]} />
       </mesh>
       <mesh position={[0.06, 1.84, 0.16]} material={material}>
         <sphereGeometry args={[0.028, 8, 6]} />
       </mesh>
-      {/* Nose */}
       <mesh position={[0, 1.79, 0.18]} material={material}>
         <sphereGeometry args={[0.022, 8, 6]} />
       </mesh>
@@ -279,75 +199,17 @@ function HumanBody({ material }: { material: THREE.Material }) {
   );
 }
 
-// ─── Organ overlay definitions ─────────────────────────────────────────────────
-interface OrganOverlay {
-  systemId: string;
-  position: [number, number, number];
-  scale: [number, number, number];
-  opacity: number;
-}
 
-const ORGAN_OVERLAYS: OrganOverlay[] = [
-  { systemId: "neuromuscular", position: [0, 1.83, 0.05], scale: [1.1, 1.0, 0.9], opacity: 0.45 },
-  { systemId: "endocrine", position: [0, 1.55, 0.12], scale: [0.7, 0.35, 0.5], opacity: 0.55 },
-  { systemId: "endocrine", position: [0, 1.75, 0.06], scale: [0.25, 0.25, 0.25], opacity: 0.65 },
-  { systemId: "endocrine", position: [-0.08, 0.72, -0.02], scale: [0.35, 0.25, 0.3], opacity: 0.5 },
-  { systemId: "endocrine", position: [0.08, 0.72, -0.02], scale: [0.35, 0.25, 0.3], opacity: 0.5 },
-  { systemId: "cardiovascular", position: [-0.08, 1.12, 0.1], scale: [0.6, 0.7, 0.55], opacity: 0.65 },
-  { systemId: "respiratory", position: [-0.14, 1.18, 0.04], scale: [0.5, 0.9, 0.4], opacity: 0.35 },
-  { systemId: "respiratory", position: [0.14, 1.18, 0.04], scale: [0.5, 0.9, 0.4], opacity: 0.35 },
-  { systemId: "digestive", position: [-0.06, 0.88, 0.08], scale: [0.6, 0.5, 0.45], opacity: 0.4 },
-  { systemId: "digestive", position: [0.10, 0.92, 0.05], scale: [0.7, 0.5, 0.45], opacity: 0.35 },
-  { systemId: "digestive", position: [0, 0.72, 0.05], scale: [0.9, 0.7, 0.45], opacity: 0.25 },
-  { systemId: "urinary", position: [-0.10, 0.70, -0.06], scale: [0.4, 0.55, 0.35], opacity: 0.45 },
-  { systemId: "urinary", position: [0.10, 0.70, -0.06], scale: [0.4, 0.55, 0.35], opacity: 0.45 },
-  { systemId: "urinary", position: [0, 0.38, 0.08], scale: [0.5, 0.45, 0.4], opacity: 0.4 },
-  { systemId: "reproductive", position: [-0.08, 0.34, 0.06], scale: [0.35, 0.3, 0.3], opacity: 0.45 },
-  { systemId: "reproductive", position: [0.08, 0.34, 0.06], scale: [0.35, 0.3, 0.3], opacity: 0.45 },
-  { systemId: "lymphatic", position: [-0.18, 0.82, -0.03], scale: [0.4, 0.45, 0.35], opacity: 0.38 },
-  { systemId: "lymphatic", position: [-0.34, 1.48, 0.04], scale: [0.22, 0.22, 0.22], opacity: 0.5 },
-  { systemId: "lymphatic", position: [0.34, 1.48, 0.04], scale: [0.22, 0.22, 0.22], opacity: 0.5 },
-  { systemId: "lymphatic", position: [-0.16, 0.30, 0.06], scale: [0.2, 0.2, 0.2], opacity: 0.45 },
-  { systemId: "lymphatic", position: [0.16, 0.30, 0.06], scale: [0.2, 0.2, 0.2], opacity: 0.45 },
-];
-
-function SystemOrgans({ activeSystems }: { activeSystems: Set<string> }) {
-  const sphereGeom = useMemo(() => new THREE.SphereGeometry(0.1, 10, 8), []);
-  const matCache = useRef(new Map<string, THREE.MeshStandardMaterial>());
-
-  const getMat = useCallback((systemId: string, opacity: number) => {
-    const key = `${systemId}_${opacity}`;
-    if (!matCache.current.has(key)) {
-      const sys = SYSTEM_MAP[systemId];
-      const color = new THREE.Color(sys?.color || "#888");
-      matCache.current.set(
-        key,
-        new THREE.MeshStandardMaterial({
-          color,
-          emissive: color,
-          emissiveIntensity: 0.35,
-          transparent: true,
-          opacity,
-          depthWrite: false,
-        })
-      );
-    }
-    return matCache.current.get(key)!;
-  }, []);
-
-  return (
-    <>
-      {ORGAN_OVERLAYS.filter((o) => activeSystems.has(o.systemId)).map((o, i) => (
-        <mesh
-          key={`organ_${i}`}
-          geometry={sphereGeom}
-          material={getMat(o.systemId, o.opacity)}
-          position={o.position}
-          scale={o.scale}
-        />
-      ))}
-    </>
-  );
+// ─── Helper: get 3D position from a reflex point ──────────────────────────────
+function getPoint3D(point: ReflexPoint): [number, number, number] {
+  if (point.position3D) {
+    return [point.position3D.x, point.position3D.y, point.position3D.z];
+  }
+  return [
+    (point.position2D.x / 100 - 0.5) * 1.2,
+    (1 - point.position2D.y / 100) * 3.0 - 0.7,
+    0.22,
+  ];
 }
 
 // ─── Hotspot point ────────────────────────────────────────────────────────────
@@ -375,15 +237,7 @@ function Hotspot({
   const meshRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
 
-  // Map 2D percentage positions to the new body's 3D coordinates
-  const pos3: [number, number, number] = useMemo(
-    () => [
-      (point.position2D.x / 100 - 0.5) * 1.2,
-      (1 - point.position2D.y / 100) * 3.0 - 0.7,
-      0.22,
-    ],
-    [point.position2D]
-  );
+  const pos3 = useMemo(() => getPoint3D(point), [point]);
 
   const threeColor = useMemo(() => new THREE.Color(color), [color]);
   const glowCol = useMemo(() => new THREE.Color(glowColor), [glowColor]);
@@ -468,17 +322,12 @@ function CursorManager({ hovered }: { hovered: boolean }) {
   return null;
 }
 
-// ─── Ground plane (subtle shadow catcher) ─────────────────────────────────────
+// ─── Ground plane ──────────────────────────────────────────────────────────────
 function Ground() {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.96, 0]} receiveShadow>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.94, 0]} receiveShadow>
       <circleGeometry args={[1.2, 48]} />
-      <meshStandardMaterial
-        color="#1a2040"
-        transparent
-        opacity={0.35}
-        roughness={1}
-      />
+      <meshStandardMaterial color="#1a2040" transparent opacity={0.35} roughness={1} />
     </mesh>
   );
 }
@@ -512,20 +361,18 @@ function Scene({ activeSystems, hoveredPoint, exploredPoints, containerRef, onHo
 
   return (
     <>
-      {/* Lighting — three-point setup with soft fill */}
       <ambientLight color="#5a7a9a" intensity={0.7} />
       <directionalLight color="#e8f0ff" intensity={2.0} position={[2, 4, 4]} />
       <directionalLight color="#c0d0e8" intensity={0.6} position={[-3, 2, 1]} />
       <pointLight color="#3060a0" intensity={0.6} position={[0, 0.5, -3]} />
       <hemisphereLight color="#b0c4de" groundColor="#1a1a3a" intensity={0.5} />
 
-      {/* Camera controls — target the body's center of mass */}
       <OrbitControls
-        target={[0, 0.5, 0]}
+        target={[0, 0.45, 0]}
         enablePan={false}
         enableZoom={true}
-        minDistance={2.0}
-        maxDistance={6}
+        minDistance={1.5}
+        maxDistance={7}
         minPolarAngle={Math.PI * 0.15}
         maxPolarAngle={Math.PI * 0.85}
         autoRotate={!hoveredPoint}
@@ -534,17 +381,10 @@ function Scene({ activeSystems, hoveredPoint, exploredPoints, containerRef, onHo
       />
 
       <CursorManager hovered={!!hoveredPoint} />
-
-      {/* Ground shadow catcher */}
       <Ground />
-
-      {/* Human body */}
       <HumanBody material={skinMat} />
+      <AnatomyOverlays3D activeSystems={activeSystems} />
 
-      {/* System organ overlays */}
-      <SystemOrgans activeSystems={activeSystems} />
-
-      {/* Hotspot markers */}
       {visiblePoints.map((point) => (
         <Hotspot
           key={point.id}
@@ -605,7 +445,7 @@ export function BodyViewer3D({
       </div>
 
       <Canvas
-        camera={{ position: [0, 0.6, 3.4], fov: 42, near: 0.1, far: 50 }}
+        camera={{ position: [0, 0.5, 4.0], fov: 45, near: 0.1, far: 50 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ antialias: true, alpha: true }}
         shadows={false}

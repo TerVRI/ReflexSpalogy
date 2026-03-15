@@ -6,12 +6,19 @@ import type { ReflexPoint } from "../data/points";
 import { REFLEX_POINTS } from "../data/points";
 import { BODY_SYSTEMS, SYSTEM_MAP } from "../data/systems";
 import { AnnotationTooltip } from "./AnnotationTooltip";
+import { AnatomyOverlays3D } from "./AnatomyOverlays3D";
+import { RealisticOrganModels } from "./RealisticOrganModels";
 
-const MODEL_URL = import.meta.env.BASE_URL + "models/female.glb";
+type Gender = "female" | "male";
+
+const MODEL_URLS: Record<Gender, string> = {
+  female: import.meta.env.BASE_URL + "models/female.glb",
+  male: import.meta.env.BASE_URL + "models/male.glb",
+};
 
 // ─── GLB model loader ──────────────────────────────────────────────────────────
-function RealisticModel(_props: { activeSystems: Set<string> }) {
-  const { scene } = useGLTF(MODEL_URL);
+function RealisticModel({ gender }: { activeSystems: Set<string>; gender: Gender }) {
+  const { scene } = useGLTF(MODEL_URLS[gender]);
   const modelRef = useRef<THREE.Group>(null);
 
   const clonedScene = useMemo(() => {
@@ -27,7 +34,7 @@ function RealisticModel(_props: { activeSystems: Set<string> }) {
         mat.roughness = 0.5;
         mat.metalness = 0.0;
         mat.transparent = true;
-        mat.opacity = 0.92;
+        mat.opacity = 0.85;
         mat.side = THREE.DoubleSide;
         mesh.material = mat;
       }
@@ -42,75 +49,21 @@ function RealisticModel(_props: { activeSystems: Set<string> }) {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
 
-    const targetHeight = 2.8;
+    const targetHeight = 3.2;
     const scale = targetHeight / size.y;
     clonedScene.scale.setScalar(scale);
 
+    const scaledCenter = center.clone().multiplyScalar(scale);
     clonedScene.position.set(
-      -center.x * scale,
-      -center.y * scale + targetHeight / 2 - 0.38,
-      -center.z * scale
+      -scaledCenter.x,
+      -scaledCenter.y,
+      -scaledCenter.z
     );
   }, [clonedScene]);
 
   return <primitive ref={modelRef} object={clonedScene} />;
 }
 
-// ─── System organ overlays (same positions as 3D viewer) ───────────────────────
-const ORGAN_OVERLAYS = [
-  { systemId: "neuromuscular", position: [0, 1.83, 0.05] as [number, number, number], scale: [1.1, 1.0, 0.9] as [number, number, number], opacity: 0.4 },
-  { systemId: "endocrine", position: [0, 1.55, 0.12] as [number, number, number], scale: [0.7, 0.35, 0.5] as [number, number, number], opacity: 0.5 },
-  { systemId: "cardiovascular", position: [-0.06, 1.12, 0.08] as [number, number, number], scale: [0.5, 0.6, 0.45] as [number, number, number], opacity: 0.55 },
-  { systemId: "respiratory", position: [-0.10, 1.18, 0.03] as [number, number, number], scale: [0.4, 0.8, 0.35] as [number, number, number], opacity: 0.3 },
-  { systemId: "respiratory", position: [0.10, 1.18, 0.03] as [number, number, number], scale: [0.4, 0.8, 0.35] as [number, number, number], opacity: 0.3 },
-  { systemId: "digestive", position: [-0.04, 0.88, 0.07] as [number, number, number], scale: [0.5, 0.4, 0.4] as [number, number, number], opacity: 0.35 },
-  { systemId: "digestive", position: [0.08, 0.92, 0.04] as [number, number, number], scale: [0.6, 0.4, 0.4] as [number, number, number], opacity: 0.3 },
-  { systemId: "digestive", position: [0, 0.72, 0.04] as [number, number, number], scale: [0.7, 0.6, 0.4] as [number, number, number], opacity: 0.22 },
-  { systemId: "urinary", position: [-0.08, 0.70, -0.05] as [number, number, number], scale: [0.35, 0.45, 0.3] as [number, number, number], opacity: 0.4 },
-  { systemId: "urinary", position: [0.08, 0.70, -0.05] as [number, number, number], scale: [0.35, 0.45, 0.3] as [number, number, number], opacity: 0.4 },
-  { systemId: "urinary", position: [0, 0.38, 0.07] as [number, number, number], scale: [0.4, 0.38, 0.35] as [number, number, number], opacity: 0.35 },
-  { systemId: "reproductive", position: [-0.06, 0.34, 0.05] as [number, number, number], scale: [0.3, 0.25, 0.25] as [number, number, number], opacity: 0.4 },
-  { systemId: "reproductive", position: [0.06, 0.34, 0.05] as [number, number, number], scale: [0.3, 0.25, 0.25] as [number, number, number], opacity: 0.4 },
-  { systemId: "lymphatic", position: [-0.15, 0.82, -0.02] as [number, number, number], scale: [0.35, 0.4, 0.3] as [number, number, number], opacity: 0.32 },
-  { systemId: "lymphatic", position: [-0.28, 1.48, 0.03] as [number, number, number], scale: [0.18, 0.18, 0.18] as [number, number, number], opacity: 0.45 },
-  { systemId: "lymphatic", position: [0.28, 1.48, 0.03] as [number, number, number], scale: [0.18, 0.18, 0.18] as [number, number, number], opacity: 0.45 },
-];
-
-function SystemOrgans({ activeSystems }: { activeSystems: Set<string> }) {
-  const sphereGeom = useMemo(() => new THREE.SphereGeometry(0.1, 10, 8), []);
-  const matCache = useRef(new Map<string, THREE.MeshStandardMaterial>());
-
-  const getMat = useCallback((systemId: string, opacity: number) => {
-    const key = `${systemId}_${opacity}`;
-    if (!matCache.current.has(key)) {
-      const sys = SYSTEM_MAP[systemId];
-      const color = new THREE.Color(sys?.color || "#888");
-      matCache.current.set(key, new THREE.MeshStandardMaterial({
-        color,
-        emissive: color,
-        emissiveIntensity: 0.35,
-        transparent: true,
-        opacity,
-        depthWrite: false,
-      }));
-    }
-    return matCache.current.get(key)!;
-  }, []);
-
-  return (
-    <>
-      {ORGAN_OVERLAYS.filter((o) => activeSystems.has(o.systemId)).map((o, i) => (
-        <mesh
-          key={`organ_${i}`}
-          geometry={sphereGeom}
-          material={getMat(o.systemId, o.opacity)}
-          position={o.position}
-          scale={o.scale}
-        />
-      ))}
-    </>
-  );
-}
 
 // ─── Hotspot ─────────────────────────────────────────────────────────────────
 function Hotspot({
@@ -126,12 +79,17 @@ function Hotspot({
   const meshRef = useRef<THREE.Mesh>(null);
 
   const pos3: [number, number, number] = useMemo(
-    () => [
-      (point.position2D.x / 100 - 0.5) * 1.2,
-      (1 - point.position2D.y / 100) * 3.0 - 0.7,
-      0.22,
-    ],
-    [point.position2D]
+    () => {
+      if (point.position3D) {
+        return [point.position3D.x, point.position3D.y, Math.max(point.position3D.z, 0.30)];
+      }
+      return [
+        (point.position2D.x / 100 - 0.5) * 1.2,
+        (1 - point.position2D.y / 100) * 3.0 - 0.7,
+        0.35,
+      ];
+    },
+    [point.position2D, point.position3D]
   );
 
   const threeColor = useMemo(() => new THREE.Color(color), [color]);
@@ -140,17 +98,20 @@ function Hotspot({
     if (!meshRef.current) return;
     const mat = meshRef.current.material as THREE.MeshStandardMaterial;
     if (isHovered) {
-      mat.emissiveIntensity = 0.6 + Math.sin(clock.elapsedTime * 4) * 0.25;
-      meshRef.current.scale.setScalar(1.4);
+      mat.emissiveIntensity = 0.8 + Math.sin(clock.elapsedTime * 4) * 0.2;
+      meshRef.current.scale.setScalar(1.5);
     } else {
-      mat.emissiveIntensity = isExplored ? 0.2 : 0.08;
+      mat.emissiveIntensity = isExplored ? 0.4 : 0.3;
       meshRef.current.scale.setScalar(1.0);
     }
   });
 
   const mat = useMemo(() => new THREE.MeshStandardMaterial({
-    color: threeColor, emissive: threeColor, emissiveIntensity: 0.1,
-    roughness: 0.2, metalness: 0.3,
+    color: threeColor, emissive: threeColor, emissiveIntensity: 0.3,
+    roughness: 0.15, metalness: 0.4,
+    depthTest: false,
+    transparent: true,
+    opacity: 0.95,
   }), [threeColor]);
 
   const handlePointerEnter = useCallback(
@@ -166,16 +127,23 @@ function Hotspot({
     [containerRef, onHover, point]
   );
 
+  const whiteMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: "white", depthTest: false,
+  }), []);
+
   return (
-    <group position={pos3}>
+    <group position={pos3} renderOrder={10}>
       <mesh ref={meshRef} material={mat}
+        renderOrder={10}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={() => onLeave()}
         onClick={(e) => { e.stopPropagation(); onSelect(point); }}
       >
-        <sphereGeometry args={[0.036, 14, 10]} />
+        <sphereGeometry args={[0.06, 14, 10]} />
       </mesh>
-      <mesh><sphereGeometry args={[0.013, 8, 6]} /><meshBasicMaterial color="white" /></mesh>
+      <mesh renderOrder={11} material={whiteMat}>
+        <sphereGeometry args={[0.02, 8, 6]} />
+      </mesh>
     </group>
   );
 }
@@ -202,12 +170,13 @@ function LoadingFallback() {
 
 // ─── Scene ─────────────────────────────────────────────────────────────────────
 function Scene({
-  activeSystems, hoveredPoint, exploredPoints, containerRef, onHoverPoint, onSelectPoint,
+  activeSystems, hoveredPoint, exploredPoints, containerRef, onHoverPoint, onSelectPoint, gender,
 }: {
   activeSystems: Set<string>; hoveredPoint: ReflexPoint | null;
   exploredPoints: Set<string>; containerRef: React.RefObject<HTMLDivElement | null>;
   onHoverPoint: (p: ReflexPoint | null, pos?: { x: number; y: number }) => void;
   onSelectPoint: (p: ReflexPoint) => void;
+  gender: Gender;
 }) {
   const visiblePoints = useMemo(
     () => REFLEX_POINTS.filter((p) => p.systemIds.some((id) => activeSystems.has(id))),
@@ -232,9 +201,9 @@ function Scene({
       <hemisphereLight color="#b0c4de" groundColor="#1a1a3a" intensity={0.5} />
 
       <OrbitControls
-        target={[0, 0.5, 0]}
+        target={[0, 0, 0]}
         enablePan={false} enableZoom
-        minDistance={2.0} maxDistance={6}
+        minDistance={1.5} maxDistance={12}
         minPolarAngle={Math.PI * 0.15} maxPolarAngle={Math.PI * 0.85}
         autoRotate={!hoveredPoint} autoRotateSpeed={0.4}
         makeDefault
@@ -243,16 +212,11 @@ function Scene({
       <CursorManager hovered={!!hoveredPoint} />
 
       <Suspense fallback={<LoadingFallback />}>
-        <RealisticModel activeSystems={activeSystems} />
+        <RealisticModel activeSystems={activeSystems} gender={gender} />
       </Suspense>
 
-      <SystemOrgans activeSystems={activeSystems} />
-
-      {/* Ground plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.96, 0]}>
-        <circleGeometry args={[1.2, 48]} />
-        <meshStandardMaterial color="#1a2040" transparent opacity={0.35} roughness={1} />
-      </mesh>
+      <AnatomyOverlays3D activeSystems={activeSystems} disableDepthTest />
+      <RealisticOrganModels activeSystems={activeSystems} gender={gender} />
 
       {visiblePoints.map((point) => (
         <Hotspot
@@ -287,6 +251,7 @@ export function BodyViewerRealistic({
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState(false);
+  const [gender, setGender] = useState<Gender>("female");
 
   const systemColors = useMemo(
     () => BODY_SYSTEMS.filter((s) => activeSystems.has(s.id)).map((s) => s.color),
@@ -305,18 +270,32 @@ export function BodyViewerRealistic({
     <div className="body-viewer body-viewer--3d" ref={containerRef} style={{ opacity: layerOpacity }}>
       <div className="body-viewer__controls">
         <div className="layer-opacity">
-          <span>Realistic model</span>
+          <span>Realistic</span>
           <div className="opacity-dots">
             {systemColors.map((c, i) => (
               <span key={i} className="opacity-dot" style={{ background: c }} />
             ))}
           </div>
         </div>
+        <div className="gender-toggle">
+          <button
+            className={`gender-btn ${gender === "female" ? "gender-btn--active" : ""}`}
+            onClick={() => setGender("female")}
+          >
+            ♀ Female
+          </button>
+          <button
+            className={`gender-btn ${gender === "male" ? "gender-btn--active" : ""}`}
+            onClick={() => setGender("male")}
+          >
+            ♂ Male
+          </button>
+        </div>
         <span className="viewer-hint">Drag to rotate · Scroll to zoom</span>
       </div>
 
       <Canvas
-        camera={{ position: [0, 0.6, 3.4], fov: 42, near: 0.1, far: 50 }}
+        camera={{ position: [0, 0, 9.5], fov: 50, near: 0.1, far: 50 }}
         style={{ width: "100%", height: "100%" }}
         gl={{ antialias: true, alpha: true }}
         shadows={false}
@@ -331,6 +310,7 @@ export function BodyViewerRealistic({
             containerRef={containerRef}
             onHoverPoint={onHoverPoint}
             onSelectPoint={onSelectPoint}
+            gender={gender}
           />
         </Suspense>
       </Canvas>
@@ -346,3 +326,6 @@ export function BodyViewerRealistic({
     </div>
   );
 }
+
+useGLTF.preload(MODEL_URLS.female);
+useGLTF.preload(MODEL_URLS.male);
